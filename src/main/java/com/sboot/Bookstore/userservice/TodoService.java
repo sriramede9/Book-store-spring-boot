@@ -26,6 +26,7 @@ public class TodoService {
 
 	static {
 		todos.add(new Todo(1, "asdfa", new Date(), true));
+		todos.add(new Todo(2, "gify", new Date(), false));
 
 	}
 
