@@ -2,10 +2,16 @@ package com.sboot.Bookstore.controller;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.List;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.propertyeditors.CustomDateEditor;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.ui.ModelMap;
@@ -16,16 +22,14 @@ import org.springframework.web.bind.annotation.InitBinder;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.SessionAttribute;
 import org.springframework.web.bind.annotation.SessionAttributes;
 
-import com.sboot.Bookstore.userservice.LoginService;
-import com.sboot.Bookstore.userservice.TodoService;
 import com.sboot.Bookstore.entity.Todo;
 import com.sboot.Bookstore.entity.User;
+import com.sboot.Bookstore.userservice.TodoService;
 
 @Controller
 @SessionAttributes("user")
@@ -37,9 +41,6 @@ public class LoginController {
 	}
 
 	@Autowired
-	LoginService ls;
-
-	@Autowired
 	TodoService ts;
 
 	@InitBinder
@@ -49,27 +50,29 @@ public class LoginController {
 		binder.registerCustomEditor(Date.class, "dob", new CustomDateEditor(dateFormat, false));
 	}
 
-	@GetMapping("/login")
+	@GetMapping("/")
 	public String login(Model model) {
 
-		model.addAttribute("user", new User());
+		model.addAttribute("user", new User("sri", "sri"));
 
-		return "login";
+		return "welcome";
 	}
 
-	@PostMapping("/resp")
-	public String formresponse(@ModelAttribute User us, Model model) {
+	private String getLoggedinUserName() {
+		Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
 
-		model.addAttribute("user", us);
+		if (principal instanceof UserDetails) {
 
-		System.out.println(ls.validate(us));
+			String username = ((UserDetails) principal).getUsername();
+			String password = ((UserDetails) principal).getPassword();
 
-		if (ls.validate(us)) {
+			User us = new User(username, password);
 
-			return "welcome";
+			return username;
+
 		}
 
-		return "login";
+		return principal.toString();
 	}
 
 	@GetMapping("/todoform")
@@ -103,7 +106,7 @@ public class LoginController {
 	@RequestMapping("/update-todo/{id}")
 	public String updatetodo(@PathVariable Integer id, Model model) {
 
-		Todo todo = ts.getall().get(id-1);
+		Todo todo = ts.getall().get(id - 1);
 		model.addAttribute(todo);
 
 		return "add-todo";
@@ -112,8 +115,23 @@ public class LoginController {
 	@DeleteMapping("/delete-todo")
 	public String delete(@RequestParam("id") Integer id) {
 
-		ts.detele(id);
+		try {
+			ts.detele(id);
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			throw new RuntimeException("no such id");
+		}
 
 		return "redirect:/todoform";
+	}
+
+	@GetMapping("/logout")
+	public String logout(HttpServletRequest request, HttpServletResponse response) {
+		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+		if (authentication != null) {
+			new SecurityContextLogoutHandler().logout(request, response, authentication);
+		}
+		return "redirect:/";
 	}
 }
